@@ -1,0 +1,2 @@
+# esphome_fingerprint_r503
+esphome_fingerprint_r503
