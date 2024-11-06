@@ -1,0 +1,155 @@
+esphome:
+  name: finger-porta-ingresso
+  friendly_name: finger_porta_ingresso
+
+esp8266:
+  board: d1_mini
+  
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: "......."
+  services:
+  - service: enroll
+    variables:
+      finger_id: int
+      num_scans: int
+    then:
+      - fingerprint_grow.enroll:
+          finger_id: !lambda 'return finger_id;'
+          num_scans: !lambda 'return num_scans;'
+  - service: cancel_enroll
+    then:
+      - fingerprint_grow.cancel_enroll:
+  - service: delete
+    variables:
+      finger_id: int
+    then:
+      - fingerprint_grow.delete:
+          finger_id: !lambda 'return finger_id;'
+  - service: delete_all
+    then:
+      - fingerprint_grow.delete_all:
+
+ota:
+  - platform: esphome
+    password: "......."
+
+uart:
+  rx_pin: D6
+  tx_pin: D5
+  baud_rate: 57600
+
+fingerprint_grow:
+  sensing_pin: D7
+  on_finger_scan_start:
+    - fingerprint_grow.aura_led_control:
+        state: BREATHING
+        color: BLUE
+        speed: 25
+        count: 1
+  on_finger_scan_matched:
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Impronta autorizzata"
+    - delay: 200ms
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Attesa"
+    - fingerprint_grow.aura_led_control:
+        state: BREATHING
+        speed: 200
+        color: PURPLE
+        count: 1
+  on_finger_scan_unmatched:
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Impronta non autorizzata"
+    - fingerprint_grow.aura_led_control:
+        state: FLASHING
+        speed: 25
+        color: RED
+        count: 2
+  on_enrollment_scan:
+    - fingerprint_grow.aura_led_control:
+        state: FLASHING
+        speed: 25
+        color: BLUE
+        count: 2
+    - fingerprint_grow.aura_led_control:
+        state: ALWAYS_ON
+        speed: 0
+        color: PURPLE
+        count: 0
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Acquisizione impronta"
+  on_enrollment_done:
+    - fingerprint_grow.aura_led_control:
+        state: BREATHING
+        speed: 100
+        color: BLUE
+        count: 2
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Impronta registrata con successo"
+  on_enrollment_failed:
+    - fingerprint_grow.aura_led_control:
+        state: FLASHING
+        speed: 25
+        color: RED
+        count: 4
+    - text_sensor.template.publish:
+        id: fingerprint_state
+        state: "Impronta non registrata! Riprova"
+
+text_sensor:
+  - platform: template
+    id: fingerprint_state
+    name: "Stato impronta"
+
+binary_sensor:
+  - platform: fingerprint_grow
+    id: fingerprint_enrolling
+    name: "Acquisendo impronta"
+
+sensor:
+  - platform: fingerprint_grow
+    fingerprint_count:
+      name: "Conta impronte"
+    last_finger_id:
+      name: "Ultimo ID impronta"
+    last_confidence:
+      name: "Affidabilità ultima impronta"
+    status:
+      name: "Stato impronta"
+    capacity:
+      name: "Capacità impronta"
+    security_level:
+      name: "Livello di sicurezza"
+
+wifi:
+  ssid: xxxxxx
+  password: xxxxxxxxx
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Finger-Porta-Ingresso"
+    password: "xxxxxxxx"
+
+
+# Example configuration entry
+light:
+  - platform: status_led
+    name: "Allarme Attivo"
+    pin: D2
+  - platform: status_led
+    name: "Allarme Non Attivo"
+    pin: D1
+
+captive_portal:
+    
